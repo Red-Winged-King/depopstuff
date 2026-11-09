@@ -1,0 +1,4 @@
+name = "usps-quick-pickup-mobile"
+main = "worker.js"
+compatibility_date = "2026-08-01"
+# Keep USPS credentials and APP_ACCESS_KEY in Cloudflare runtime secrets.
