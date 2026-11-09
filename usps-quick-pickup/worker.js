@@ -1,0 +1,168 @@
+/* Quick Pickup – Cloudflare Worker / USPS Carrier Pickup v3.
+ * Never commit USPS_CLIENT_SECRET or APP_ACCESS_KEY to GitHub.
+ * Source: https://developers.usps.com/carrierpickupv3
+ */
+const HTML = String.raw`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101b2d"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Quick Pickup">
+<link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/icon.svg" type="image/svg+xml">
+<title>Quick Pickup · USPS</title>
+<style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#182339;background:#eff3f8;font-synthesis:none}
+*{box-sizing:border-box}body{margin:0;min-height:100vh}main{width:min(520px,100%);margin:auto;padding:20px 18px 70px}header{display:flex;align-items:center;justify-content:space-between;padding:12px 0 24px}.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;letter-spacing:-.4px}.logo svg{width:35px;height:35px}.chip{border:1px solid #cad5e2;background:white;padding:6px 10px;border-radius:99px;font-size:11px;font-weight:800;color:#465874}.hero{background:#132b4b;color:white;padding:25px 24px;border-radius:22px;margin-bottom:16px;box-shadow:0 12px 35px #132b4b20}.eyebrow{color:#a9c8ed;font-size:11px;font-weight:750;letter-spacing:2px;text-transform:uppercase}.hero h1{font-size:27px;line-height:1.16;margin:11px 0;font-weight:760;letter-spacing:-.9px}.hero p{color:#c5d8f0;line-height:1.45;font-size:13px;margin:0}.card{border-radius:18px;background:white;border:1px solid #e1e7ee;margin-top:14px;padding:20px;box-shadow:0 2px 10px #1a33500a}.row{display:flex;gap:12px}.row>*{flex:1;min-width:0}label{display:block;font-size:12px;font-weight:750;color:#384862;margin:12px 0 7px}.biglabel{font-size:13px}.field,select,textarea{display:block;appearance:none;width:100%;background:#f9fbfe;border:1px solid #ccd7e5;border-radius:12px;padding:13px 12px;font-size:16px;min-height:46px;font-family:inherit;color:#162a47;outline:0}.field:focus,select:focus,textarea:focus{border-color:#386cba;box-shadow:0 0 0 3px #d8e8ff}textarea{resize:vertical;min-height:80px;font-size:14px}h2{font-size:17px;letter-spacing:-.4px;margin:0 0 7px}.muted{color:#64768b;font-size:12px;line-height:1.5}.divider{height:1px;background:#e8edf3;margin:17px 0}.summary{background:#f2f6fc;border:1px solid #e4eaf2;border-radius:12px;padding:13px 15px;font-size:13px;color:#304665;line-height:1.5;white-space:pre-line}.badge{font-weight:750;color:#285b9d;background:#ebf3ff;border-radius:50px;padding:5px 9px;font-size:11px}.topline{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}.btn{background:#165bac;color:white;border:none;border-radius:13px;width:100%;min-height:51px;font-size:15px;font-weight:780;cursor:pointer;margin-top:16px}.btn:disabled{opacity:.55;cursor:wait}.btn.alt{border:1px solid #d3deeb;color:#203e63;background:white}.btn.slim{width:auto;padding:8px 13px;min-height:0;font-size:12px;margin:0}.tiny{font-size:11px;color:#64768b;line-height:1.5}.check{display:flex;align-items:flex-start;gap:10px;font-size:12px;line-height:1.5;color:#415873;padding-top:12px}.check input{margin-top:3px;transform:scale(1.3)}.notice{border-radius:11px;padding:12px 14px;margin-top:12px;font-size:12px;line-height:1.5}.error{background:#fff1ef;border:1px solid #f8c8c0;color:#973323}.good{background:#e8f8ed;border:1px solid #a2ddaf;color:#186737}.warn{background:#fff7e6;border:1px solid #f4dfa9;color:#705308}.hidden{display:none!important}.code{font-size:30px;font-weight:800;letter-spacing:1px;color:#144b87;overflow-wrap:anywhere}.historyItem{display:flex;justify-content:space-between;border-top:1px solid #eaf0f5;padding:13px 0;gap:8px;font-size:12px}.historyItem strong{color:#254c81}.link{color:#1757a1;text-decoration:none}.pill{padding:4px 9px;color:#3b5a83;background:#e7f1ff;border-radius:20px;font-size:11px;font-weight:800}.foot{text-align:center;margin-top:22px}.lock{display:flex;align-items:center;gap:6px;color:#62768b;font-size:11px}@media(max-width:380px){main{padding-inline:12px}.hero{padding:20px}}
+</style>
+</head>
+<body><main>
+<header><div class="logo"><svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" rx="12" fill="#135cb1"/><path d="m11 23 11 11L39 14" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Quick Pickup</span></div><span class="chip">USPS GROUND ADVANTAGE</span></header>
+<div class="hero"><span class="eyebrow">Depop shipping companion</span><h1>Schedule pickup<br>in a few taps.</h1><p>Next available free carrier pickup, your saved address, and your USPS confirmation in one place.</p></div>
+<section class="card" id="setupCard"><div class="topline"><h2>One-time setup</h2><span class="badge">SAVED ON THIS PHONE</span></div><p class="muted">These details stay in your phone's browser storage, not in public GitHub files. Your access key is only sent to your Worker.</p>
+<form id="setupForm"><div class="row"><div><label>First name</label><input class="field" name="first_name" autocomplete="given-name" required maxlength="40"></div><div><label>Last name</label><input class="field" name="last_name" autocomplete="family-name" required maxlength="40"></div></div>
+<label>Street address</label><input class="field" name="street" autocomplete="address-line1" required maxlength="100"><label>Apt / unit (optional)</label><input class="field" name="unit" autocomplete="address-line2" maxlength="60">
+<div class="row"><div style="flex:2"><label>City</label><input class="field" name="city" autocomplete="address-level2" required></div><div style="flex:1"><label>State</label><input class="field" name="state" value="VA" autocomplete="address-level1" required maxlength="2" style="text-transform:uppercase"></div></div>
+<label>ZIP code</label><input class="field" name="zip" inputmode="numeric" autocomplete="postal-code" pattern="[0-9]{5}" maxlength="5" required>
+<div class="row"><div><label>Email</label><input class="field" name="email" autocomplete="email" type="email" required></div><div><label>Phone</label><input class="field" name="phone" inputmode="tel" autocomplete="tel" required></div></div>
+<label>Where should the carrier pick up?</label><select name="package_location"><option value="FRONT_DOOR">Front door</option><option value="PORCH">Porch</option><option value="MAIL_ROOM">Mail room</option><option value="BACK_DOOR">Back door</option><option value="OTHER">Other (describe below)</option></select>
+<label>Pickup instructions</label><textarea name="instructions" maxlength="255">Please scan each package using Prepaid Acceptance when picking them up so tracking updates promptly. Thank you!</textarea>
+<label>Dog at pickup location?</label><select name="dog_present"><option value="false">No</option><option value="true">Yes</option></select>
+<div class="divider"></div><label>Private app access key</label><input class="field" name="app_key" type="password" autocomplete="off" placeholder="APP_ACCESS_KEY from Cloudflare" required><p class="tiny">Create a strong secret in your Cloudflare Worker settings, then enter the same key here. Do NOT enter your USPS password or USPS API secret here.</p>
+<button class="btn" type="submit">Save setup</button></form></section>
+<section class="card hidden" id="pickupCard"><div class="topline"><h2>New pickup</h2><button class="btn slim alt" type="button" id="editBtn">Edit address</button></div><div class="summary" id="savedAddress"></div>
+<form id="pickupForm"><div class="row"><div><label class="biglabel">Packages</label><input class="field" name="count" inputmode="numeric" type="number" min="1" max="999" step="1" placeholder="3" required></div><div><label class="biglabel">Combined weight (lbs)</label><input class="field" name="weight" inputmode="decimal" type="number" min="0.01" max="69930" step="any" placeholder="4.5" required></div></div>
+<div class="divider"></div><div class="topline"><span style="font-weight:750;font-size:14px">Free carrier pickup</span><span class="pill">$0 pickup fee</span></div><p class="muted">We'll request the earliest eligible pickup date. USPS confirms the actual date after submission. Only prepaid Ground Advantage packages are counted.</p>
+<label class="check"><input id="compliant" type="checkbox" required><span>All packages have valid prepaid USPS labels, are sealed and ready, and each weighs no more than 70 lb.</span></label>
+<button class="btn" id="submitBtn" type="submit">Schedule free pickup →</button>
+<p class="tiny">USPS can change the date due to holidays or service eligibility. This does not create acceptance scans; the carrier still needs to scan packages when collected.</p></form>
+<div id="pickupError" class="notice error hidden" role="alert"></div><div id="pickupResult" class="notice good hidden" role="status"><b id="resultHeading">Confirmed by USPS</b><p style="margin:7px 0 0">Confirmation number</p><div class="code" id="confirmation"></div><p id="resultDate" style="font-size:14px"></p><button class="btn alt" type="button" id="copyBtn">Copy confirmation</button></div>
+</section>
+<section class="card hidden" id="historyCard"><div class="topline"><h2>Recent pickups</h2><span class="badge">THIS PHONE</span></div><div id="historyList" class="muted">None yet</div></section>
+<section class="card"><div class="topline"><h2>USPS connection</h2><button class="btn slim alt" type="button" id="checkBtn">Check</button></div><p class="muted">Check your USPS API access and whether your saved address qualifies for Carrier Pickup.</p><div id="checkResult" class="notice hidden"></div></section>
+<div class="foot"><p class="tiny">Independent tool, not affiliated with USPS or Depop. USPS accepts and confirms every real pickup. <a class="link" href="https://tools.usps.com/schedule-pickup-steps.htm" target="_blank" rel="noopener noreferrer">Official USPS pickup form</a></p></div>
+</main>
+<script>
+'use strict';
+const KEY='usps.mobile.pickup.settings.v1',HISTORY='usps.mobile.pickup.history.v1';
+const $=s=>document.querySelector(s), show=(s,on)=>$(s).classList.toggle('hidden',!on);
+let settings={},history=[];
+try{settings=JSON.parse(localStorage.getItem(KEY)||'{}')||{};history=JSON.parse(localStorage.getItem(HISTORY)||'[]')||[]}catch{}
+function save(){localStorage.setItem(KEY,JSON.stringify(settings))}
+function render(){const done=Boolean(settings.street&&settings.app_key);show('#setupCard',!done);show('#pickupCard',done);show('#historyCard',done);if(!done)return;
+  $('#savedAddress').textContent=[settings.first_name+' '+settings.last_name,settings.street,settings.unit,[settings.city,settings.state,settings.zip].filter(Boolean).join(', '),'Pickup spot: '+settings.package_location.replaceAll('_',' ').toLowerCase()].filter(Boolean).join('\n');
+  $('#historyList').replaceChildren();
+  if(!history.length){$('#historyList').textContent='No pickups scheduled from this phone yet.';return}
+  history.slice(0,8).forEach(h=>{let div=document.createElement('div');div.className='historyItem';let a=document.createElement('span'),b=document.createElement('strong');a.textContent=h.date+' · '+h.count+' packages';b.textContent=h.confirmation;div.append(a,b);$('#historyList').append(div)});
+}
+for(const [k,v] of Object.entries(settings)){let el=$('#setupForm').elements.namedItem(k);if(el)el.value=v}
+$('#setupForm').addEventListener('submit',ev=>{ev.preventDefault();let d=Object.fromEntries(new FormData(ev.currentTarget).entries());d.state=d.state.trim().toUpperCase();d.phone=d.phone.replace(/[^0-9]/g,'');if(d.phone.length!==10||!/^[A-Z]{2}$/.test(d.state)){alert('Use a two-letter state and a 10-digit phone number.');return}settings=d;save();render();window.scrollTo({top:0,behavior:'smooth'})});
+$('#editBtn').addEventListener('click',()=>{show('#setupCard',true);show('#pickupCard',false);show('#historyCard',false);window.scrollTo({top:0,behavior:'smooth'})});
+async function api(action,data){const response=await fetch('/api/'+action,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+settings.app_key},body:JSON.stringify(data)});let result;try{result=await response.json()}catch{throw Error('Unexpected response from pickup server.')};if(!response.ok)throw Error(result.error||'USPS request failed');return result}
+function notice(selector,msg,ok){const node=$(selector);node.textContent=msg;node.classList.remove('hidden','good','error');node.classList.add(ok?'good':'error')}
+$('#checkBtn').addEventListener('click',async()=>{const b=$('#checkBtn');b.disabled=true;b.textContent='Checking…';try{if(!settings.street)throw Error('Save your address and private app key first.');const r=await api('check',{settings});notice('#checkResult',r.message||'Your USPS pickup address is eligible.',true)}catch(e){notice('#checkResult',e.message,false)}finally{b.disabled=false;b.textContent='Check'}});
+$('#pickupForm').addEventListener('submit',async ev=>{ev.preventDefault();show('#pickupResult',false);show('#pickupError',false);
+const form=ev.currentTarget,count=Number(form.elements.namedItem('count').value),weight=Number(form.elements.namedItem('weight').value);
+if(!Number.isInteger(count)||count<1||count>999||!Number.isFinite(weight)||weight<=0||weight>count*70){notice('#pickupError','Check package count and total weight (maximum 70 lb per package).',false);return}
+const today=new Date().toLocaleDateString('en-CA',{timeZone:'America/New_York'});
+const dup=history.find(h=>h.requested_at&&h.requested_at.slice(0,10)===today);
+if(dup){notice('#pickupError','You already booked a pickup from this phone today ('+dup.confirmation+'). This app prevents accidental duplicate requests. Use the USPS site to change an existing pickup.',false);return}
+if(!window.confirm('Send a REAL pickup request to USPS for '+count+' Ground Advantage package(s), total '+weight+' lb, at '+settings.street+'?'))return;
+const btn=$('#submitBtn');btn.disabled=true;btn.textContent='Contacting USPS…';
+try{const r=await api('schedule',{settings,count,weight,ready:true});if(!r.confirmationNumber)throw Error('USPS did not return a confirmation. Check email/USPS before retrying.');const entry={date:r.pickupDate||'Date in USPS confirmation',confirmation:r.confirmationNumber,count,weight,requested_at:today+'T'+new Date().toISOString()};history.unshift(entry);localStorage.setItem(HISTORY,JSON.stringify(history.slice(0,30)));render();$('#confirmation').textContent=entry.confirmation;$('#resultDate').textContent='Pickup date: '+entry.date;show('#pickupResult',true);$('#compliant').checked=false}
+catch(e){notice('#pickupError',e.message+' If the request may have been received, check your email before trying again.',false)}finally{btn.disabled=false;btn.textContent='Schedule free pickup →'}});
+$('#copyBtn').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('#confirmation').textContent);$('#copyBtn').textContent='Copied';setTimeout(()=>$('#copyBtn').textContent='Copy confirmation',2000)}catch{alert('Confirmation: '+$('#confirmation').textContent)}});
+render();
+</script></body></html>
+`;
+const API = 'https://apis.usps.com';
+let tokenCache = { token: '', until: 0 };
+const HEADERS = {'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'};
+const REQ_HEADERS = {'Accept':'application/json','Content-Type':'application/json'};
+class PublicError extends Error { constructor(msg,status=400){super(msg);this.status=status} }
+const ok = (body,status=200,extra={}) => new Response(JSON.stringify(body),{status,headers:{...HEADERS,...extra,'Content-Type':'application/json'}});
+function validate(s, count, weight, forSchedule) {
+ if (!s || typeof s !== 'object' || Array.isArray(s)) throw new PublicError('Save your pickup details first.');
+ const max=(n,l=100)=>String(n??'').trim().slice(0,l);
+ const v = Object.fromEntries(['first_name','last_name','street','unit','city','state','zip','email','phone','instructions','package_location','dog_present'].map(k=>[k,max(s[k],k==='instructions'?255:120)]));
+ for(const k of ['first_name','last_name','street','city','state','zip','email','phone'])if(!v[k])throw new PublicError('Missing '+k.replaceAll('_',' '));
+ v.state=v.state.toUpperCase();v.phone=v.phone.replace(/\D/g,'');
+ if(!/^[A-Z]{2}$/.test(v.state)||!/^[0-9]{5}$/.test(v.zip)||!/^[0-9]{10}$/.test(v.phone)||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email))throw new PublicError('Check your state, ZIP code, phone number, and email.');
+ if(!['FRONT_DOOR','PORCH','MAIL_ROOM','BACK_DOOR','OTHER'].includes(v.package_location))throw new PublicError('Choose a valid pickup location.');
+ if(v.package_location==='OTHER'&&!v.instructions)throw new PublicError('Provide instructions for your pickup location.');
+ if(forSchedule){if(!Number.isInteger(count)||count<1||count>999)throw new PublicError('Enter 1–999 packages.');
+  if(typeof weight!=='number'||!Number.isFinite(weight)||weight<=0||weight>count*70)throw new PublicError('Enter the total weight in pounds (no more than 70 lb per package).');}
+ return v;
+}
+function utcDateOffset(date,days){const d=new Date(date+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10)}
+function nextDate(now=new Date()) {
+ const ny=new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'});
+ const central=new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
+ const parts=Object.fromEntries(ny.formatToParts(now).map(p=>[p.type,p.value]));
+ let date=parts.year+'-'+parts.month+'-'+parts.day;
+ const p=Object.fromEntries(central.formatToParts(now).map(x=>[x.type,x.value]));
+ const hour=Number(p.hour);
+ // The USPS Carrier Pickup API permits same-day requests only before 2AM Central.
+ if(hour>=2)date=utcDateOffset(date,1);
+ // Sundays are unavailable; USPS nextAvailablePickup handles holidays.
+ if(new Date(date+'T12:00:00Z').getUTCDay()===0)date=utcDateOffset(date,1);
+ return date;
+}
+async function upstream(path, method, token, body) {
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
+ try{
+  const res=await fetch(API+path,{method,headers:{...REQ_HEADERS,...(token?{Authorization:'Bearer '+token}:{})},...(body!==undefined?{body:JSON.stringify(body)}:{}),signal:controller.signal});
+  const raw=await res.text();let data={};try{data=raw?JSON.parse(raw):{}}catch{if(res.ok)throw new PublicError('USPS returned an unexpected response.',502)}
+  if(!res.ok){const err=data.error||{};let message=typeof err==='string'?err:(err.message||err.errors?.[0]?.detail||data.error_description||data.message||'USPS rejected the request');throw new PublicError('USPS: '+String(message).slice(0,300),res.status>=500?502:res.status)}
+  return data;
+ }catch(e){if(e.name==='AbortError'||e instanceof TypeError)throw new PublicError('USPS timed out or could not be reached. Check your email before retrying a booking.',502);throw e}
+ finally{clearTimeout(timer)}
+}
+async function auth(env){if(!env.USPS_CLIENT_ID||!env.USPS_CLIENT_SECRET)throw new PublicError('USPS API credentials have not been added to your Cloudflare Worker yet.',503);
+ if(tokenCache.token&&Date.now()<tokenCache.until)return tokenCache.token;
+ const r=await upstream('/oauth2/v3/token','POST',null,{grant_type:'client_credentials',client_id:env.USPS_CLIENT_ID,client_secret:env.USPS_CLIENT_SECRET});
+ if(!r.access_token)throw new PublicError('USPS did not return an API token. Verify Carrier Pickup access.',502);
+ tokenCache={token:r.access_token,until:Date.now()+Math.min(Number(r.expires_in||3600),3600)*1000-90000};return tokenCache.token;
+}
+async function eligible(v,token){let params=new URLSearchParams({streetAddress:v.street,city:v.city,state:v.state,ZIPCode:v.zip});if(v.unit)params.set('secondaryAddress',v.unit);return upstream('/pickup/v3/carrier-pickup/eligibility?'+params.toString(),'GET',token)}
+function confirmation(d){if(!d||typeof d!=='object')return null;
+ if(d.confirmationNumber)return {confirmationNumber:String(d.confirmationNumber),pickupDate:String(d.pickupDate||'')};
+ if(Array.isArray(d))for(const child of d){const r=confirmation(child);if(r)return r}
+ for(const key of ['result','data','pickup','carrierPickup','carrierPickupResponse']){const r=confirmation(d[key]);if(r)return r}return null;
+}
+function requestBody(v,count,weight,env){const address={streetAddress:v.street,city:v.city,state:v.state,ZIPCode:v.zip};if(v.unit)address.secondaryAddress=v.unit;
+ return {pickupDate:nextDate(),nextAvailablePickup:true,pickupAddress:{firstName:v.first_name,lastName:v.last_name,address,contact:[{email:v.email},{phone:v.phone}]},
+  packages:[{packageType:env.USPS_PACKAGE_TYPE||'USPS_GROUND_ADVANTAGE',packageCount:count}],estimatedWeight:weight,
+  pickupLocation:{packageLocation:v.package_location,specialInstructions:v.instructions,dogPresent:v.dog_present==='true'}};
+}
+async function keyMatches(given,secret){if(!secret||secret.length<16)return false;
+ const a=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(given));
+ const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(secret));
+ const aa=new Uint8Array(a),bb=new Uint8Array(b);let mismatch=0;for(let i=0;i<aa.length;i++)mismatch|=(aa[i]^bb[i]);return mismatch===0;
+}
+const svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><rect width="128" height="128" rx="29" fill="#145bab"/><path d="M28 66 55 92 101 38" fill="none" stroke="white" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const manifest={name:'USPS Quick Pickup',short_name:'Quick Pickup',description:'Schedule free USPS Ground Advantage carrier pickups',start_url:'/',scope:'/',display:'standalone',background_color:'#eff3f8',theme_color:'#101b2d',icons:[{src:'/icon.svg',sizes:'any',type:'image/svg+xml',purpose:'any maskable'}]};
+export default {
+ async fetch(request,env){const url=new URL(request.url);try{
+  if(request.method==='GET'&&url.pathname==='/')return new Response(HTML,{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-cache','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; manifest-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"}});
+  if(request.method==='GET'&&url.pathname==='/icon.svg')return new Response(svg,{headers:{'Content-Type':'image/svg+xml','Cache-Control':'public, max-age=86400'}});
+  if(request.method==='GET'&&url.pathname==='/manifest.webmanifest')return new Response(JSON.stringify(manifest),{headers:{'Content-Type':'application/manifest+json'}});
+  if(request.method==='GET'&&url.pathname==='/api/status')return ok({ready:Boolean(env.APP_ACCESS_KEY&&env.USPS_CLIENT_ID&&env.USPS_CLIENT_SECRET)});
+  if(request.method==='POST'&&(url.pathname==='/api/check'||url.pathname==='/api/schedule')){
+   if(request.headers.get('Origin')&&request.headers.get('Origin')!==url.origin)throw new PublicError('Cross-site requests are not permitted.',403);
+   if(!request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json'))throw new PublicError('JSON request required.',415);
+   if(!await keyMatches((request.headers.get('Authorization')||'').replace(/^Bearer\s+/i,''),env.APP_ACCESS_KEY))throw new PublicError('Incorrect private app access key.',401);
+   if(Number(request.headers.get('Content-Length')||0)>20000)throw new PublicError('Request too large.',413);
+   let input;try{input=await request.json()}catch{throw new PublicError('Invalid JSON request.')}
+   const scheduling=url.pathname==='/api/schedule';
+   if(scheduling&&input.ready!==true)throw new PublicError('Confirm that packages are sealed and have prepaid labels.');
+   const v=validate(input.settings,Number(input.count),Number(input.weight),scheduling);const token=await auth(env);
+   await eligible(v,token);
+   if(!scheduling)return ok({eligible:true,message:'USPS confirmed your address is eligible for free Carrier Pickup.'});
+   const body=requestBody(v,Number(input.count),Number(input.weight),env);const received=await upstream('/pickup/v3/carrier-pickup','POST',token,body);
+   const parsed=confirmation(received);
+   if(!parsed)throw new PublicError('USPS responded without a confirmation number. Check your USPS email/account before retrying.',502);
+   return ok(parsed);
+  }
+  return new Response('Not found',{status:404,headers:HEADERS});
+ }catch(e){return ok({error:e instanceof PublicError?e.message:'Unexpected server error.'},e instanceof PublicError?e.status:500)}
+ }
+};
